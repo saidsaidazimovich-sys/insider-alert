@@ -1,0 +1,72 @@
+name: monitor
+
+# Timing note: GitHub's shortest cron is */5, and scheduled runs are NOT
+# punctual -- 10-30 minute delays are normal under load. Real detection lag is
+# therefore roughly 15-35 minutes, not seconds.
+#
+# Quota note: this repo is PUBLIC, and GitHub-hosted runners are free with no
+#   minute cap on public repositories. That is why the interval is */5 (the
+#   shortest GitHub honours) rather than */15. The timeout stays as a guard
+#   against a hung run, not as a cost control.
+#
+# Reminder: everything in this repo is world-readable, including workflow LOGS.
+#   Secrets are masked by GitHub and are never printed. Do not add code that
+#   echoes an environment variable.
+on:
+  schedule:
+    # 10:00-23:59 UTC  =  06:00-19:59 ET
+    - cron: "*/5 10-23 * * 1-5"
+    # 00:00-02:59 UTC  =  20:00-22:59 ET (previous US weekday)
+    - cron: "*/5 0-2 * * 2-6"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print alerts instead of sending them"
+        type: boolean
+        default: false
+
+concurrency:
+  # Never let a delayed run overlap the next one and double-process filings.
+  group: insider-monitor
+  cancel-in-progress: false
+
+permissions:
+  contents: write        # needed to commit the state file back
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      - name: Poll EDGAR
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python run.py ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Persist state
+        if: always()
+        run: |
+          if [[ -n "$(git status --porcelain state/)" ]]; then
+            git config user.name  "insider-alert-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add state/
+            git commit -m "state: $(date -u '+%Y-%m-%d %H:%M UTC')"
+            # Another run may have pushed while we worked.
+            git pull --rebase --autostash origin ${{ github.ref_name }} || true
+            git push
+          else
+            echo "state unchanged"
+          fi
