@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<ownershipDocument>
+    <documentType>4</documentType>
+    <issuer>
+        <issuerCik>0000866374</issuerCik>
+        <issuerName>Example Tech Inc</issuerName>
+        <issuerTradingSymbol>EXTI</issuerTradingSymbol>
+    </issuer>
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0001597149</rptOwnerCik>
+            <rptOwnerName>Roe Richard</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerRelationship>
+            <isDirector>1</isDirector>
+            <isOfficer>0</isOfficer>
+            <isTenPercentOwner>0</isTenPercentOwner>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+    <nonDerivativeTable>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <transactionDate><value>2026-05-07</value></transactionDate>
+            <transactionCoding><transactionCode>M</transactionCode></transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>50000</value></transactionShares>
+                <transactionPricePerShare><value>12.00</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+        </nonDerivativeTransaction>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <transactionDate><value>2026-05-07</value></transactionDate>
+            <transactionCoding><transactionCode>F</transactionCode></transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>18000</value></transactionShares>
+                <transactionPricePerShare><value>41.10</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>D</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+        </nonDerivativeTransaction>
+    </nonDerivativeTable>
+</ownershipDocument>

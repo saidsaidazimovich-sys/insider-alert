@@ -1,0 +1,29 @@
+# Behaviour lives here. Secrets never do -- those come from the environment
+# (locally: a .env file; on GitHub: repository secrets).
+
+filters:
+  # Both conditions must hold, as specified.
+  min_value_usd: 250000          # minimal purchase size in USD
+  min_pct_of_market_cap: 1.0     # ...and at least this % of market cap
+  # NOTE: because both apply, the cap ceiling is value x (100 / this %).
+  #       At 250000 and 1.0 only companies under $25M can ever qualify.
+
+  allowed_exchanges: []          # e.g. [NASDAQ, NYSE] -- empty means any
+  exclude_tickers: []
+
+  # If the market cap cannot be established, alert anyway with a warning
+  # rather than silently skipping a possibly large purchase.
+  alert_when_cap_unknown: true
+
+market:
+  provider: yfinance             # yfinance | finviz (finviz is a stub)
+
+edgar:
+  requests_per_second: 8         # SEC hard limit is 10
+  feed_pages: 6                  # pagination depth for the getcurrent feed
+  feed_page_size: 400            # 400 is the maximum EDGAR honours
+
+run:
+  state_file: state/state.json
+  max_filings_per_run: 400       # safety valve on a single run
+  alert_on_failure: true         # GitHub does not tell you when a cron job dies

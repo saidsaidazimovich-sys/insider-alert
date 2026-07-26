@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<ownershipDocument>
+    <documentType>4/A</documentType>
+    <issuer>
+        <issuerCik>0000999999</issuerCik>
+        <issuerName>Smith & Sons Holdings</issuerName>
+        <issuerTradingSymbol>NONE</issuerTradingSymbol>
+    </issuer>
+    <reportingOwner>
+        <reportingOwnerId><rptOwnerName>Unknown Person</rptOwnerName></reportingOwnerId>
+    </reportingOwner>
+    <nonDerivativeTable>
+        <nonDerivativeTransaction>
+            <transactionCoding><transactionCode>P</transactionCode></transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>5000</value></transactionShares>
+                <transactionPricePerShare><footnoteId id="F1"/></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+        </nonDerivativeTransaction>
+    </nonDerivativeTable>
+</ownershipDocument>

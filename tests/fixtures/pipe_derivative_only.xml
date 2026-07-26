@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<!-- Shape taken from a real filing: SHF Holdings, accession 0001493152-26-022075.
+     Zero non-derivative transactions; code P on preferred stock and warrants
+     bought under a Securities Purchase Agreement. Must NOT alert. -->
+<ownershipDocument>
+    <schemaVersion>X0609</schemaVersion>
+    <documentType>4</documentType>
+    <periodOfReport>2025-09-30</periodOfReport>
+    <issuer>
+        <issuerCik>0001854963</issuerCik>
+        <issuerName>SHF Holdings, Inc.</issuerName>
+        <issuerTradingSymbol>SHFS</issuerTradingSymbol>
+    </issuer>
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0001581143</rptOwnerCik>
+            <rptOwnerName>Kay Jeffrey R.</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerRelationship>
+            <isDirector>0</isDirector>
+            <isOfficer>1</isOfficer>
+            <isTenPercentOwner>0</isTenPercentOwner>
+            <officerTitle>Chief Marketing Officer</officerTitle>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+    <derivativeTable>
+        <derivativeTransaction>
+            <securityTitle><value>Series B Convertible Preferred Stock</value></securityTitle>
+            <transactionDate><value>2025-09-30</value></transactionDate>
+            <transactionCoding><transactionCode>P</transactionCode></transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>63</value></transactionShares>
+                <transactionPricePerShare><value>800</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts>
+                <sharesOwnedFollowingTransaction><value>63</value></sharesOwnedFollowingTransaction>
+            </postTransactionAmounts>
+        </derivativeTransaction>
+        <derivativeTransaction>
+            <securityTitle><value>Series B Warrant to Purchase Common Stock (Right to Buy)</value></securityTitle>
+            <transactionDate><value>2025-09-30</value></transactionDate>
+            <transactionCoding><transactionCode>P</transactionCode></transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>4057</value></transactionShares>
+                <transactionPricePerShare><value>0</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+        </derivativeTransaction>
+    </derivativeTable>
+    <footnotes>
+        <footnote id="F1">On September 30, 2025, the Reporting Person entered into a Securities Purchase Agreement with SHF Holdings, Inc. (the "Issuer"), pursuant to which the Reporting Person acquired the securities reported herein.</footnote>
+        <footnote id="F2">This transaction is being reported late due to an inadvertent administrative oversight.</footnote>
+    </footnotes>
+</ownershipDocument>
