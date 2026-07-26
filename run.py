@@ -117,7 +117,10 @@ def _process(
                 log.error("failed to deliver alert for %s", entry.accession)
                 state.bump("send_failed")
 
-        if sent_for_this_filing:
+        # A dry run must never consume the alert. Marking it here would make
+        # the first real run skip the filing as "already sent" and the signal
+        # would be lost silently.
+        if sent_for_this_filing and not notifier.dry_run:
             state.mark_alerted(entry.accession)
 
     return examined, alerted
@@ -240,7 +243,10 @@ def main() -> int:
         )
         state.bump("runs")
         state.finish_run()
-        state.save()
+        if args.dry_run:
+            log.info("dry-run: state deliberately NOT saved")
+        else:
+            state.save()
         log.info(
             "done: %s examined, %s alerts, counters=%s", examined, alerted, state.counters
         )
@@ -259,10 +265,11 @@ def main() -> int:
                 )
             except Exception:  # noqa: BLE001
                 pass
-        try:
-            state.save()
-        except Exception:  # noqa: BLE001
-            pass
+        if not args.dry_run:
+            try:
+                state.save()
+            except Exception:  # noqa: BLE001
+                pass
         return 1
 
 
