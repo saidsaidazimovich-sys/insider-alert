@@ -100,3 +100,21 @@ def test_multi_leg_note_and_premium_note():
     assert any("3 ta tranzaksiya" in n for n in sig.notes)
     # paid $2.40 vs $1.00 market
     assert any("qimmat" in n for n in sig.notes)
+
+
+def test_one_alert_per_filing_even_with_five_co_filers():
+    """Regression: a KLRS fund purchase listed five reporting owners and sent
+    five identical Telegram messages for one $1.18M buy."""
+    from insider.form4 import Owner, primary_owner
+
+    owners = [
+        Owner(cik="1", name="AKKARAJU SRINIVAS", is_director=True),
+        Owner(cik="2", name="Samsara BioCapital, L.P.", is_ten_percent_owner=True),
+        Owner(cik="3", name="Samsara BioCapital GP, LLC", is_ten_percent_owner=True),
+        Owner(cik="4", name="Samsara Opportunity Fund, L.P.", is_ten_percent_owner=True),
+        Owner(cik="5", name="Samsara Opportunity Fund GP, LLC", is_ten_percent_owner=True),
+    ]
+    # The human is named, not the holding company.
+    assert primary_owner(owners).name == "AKKARAJU SRINIVAS"
+    # Entities only -> fall back to the first rather than crashing.
+    assert primary_owner(owners[1:]).name == "Samsara BioCapital, L.P."
