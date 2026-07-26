@@ -29,7 +29,7 @@ from dotenv import load_dotenv
 
 from insider.config import load_config, secret, setup_logging
 from insider.edgar import EdgarClient, FeedEntry
-from insider.form4 import parse_form4
+from insider.form4 import Owner, parse_form4, primary_owner
 from insider.market import build_provider
 from insider.notify import TelegramNotifier, format_signal
 from insider.screen import screen
@@ -85,37 +85,41 @@ def _process(
         snap = provider.snapshot(doc.ticker) if doc.ticker else None
         filed = entry.filed_at.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
-        # A filing can carry several reporting owners; alert once per owner but
-        # never twice for the same accession.
-        owners = doc.owners or []
+        # ONE alert per filing. Reporting owners are co-filers on the SAME
+        # transaction, not separate buyers -- a single KLRS purchase listed
+        # five owners and produced five identical Telegram messages before
+        # this was fixed.
+        owners = doc.owners or [Owner(cik=None, name=None)]
         sent_for_this_filing = False
-        for owner in owners:
-            sig, rej = screen(
-                doc,
-                owner,
-                accession=entry.accession,
-                filing_url=entry.filing_url,
-                filed_at=filed,
-                market=snap,
-                cfg=cfg["filters"],
-            )
-            if sig is None:
-                log.info("skip %s: %s", entry.accession, rej.reason)
-                state.bump("filtered_out")
-                break
 
-            if notifier.send(format_signal(sig)):
-                alerted += 1
-                sent_for_this_filing = True
-                log.info(
-                    "ALERT %s %s $%s",
-                    sig.ticker,
-                    sig.owner_name,
-                    f"{sig.value_usd:,.0f}",
-                )
-            else:
-                log.error("failed to deliver alert for %s", entry.accession)
-                state.bump("send_failed")
+        sig, rej = screen(
+            doc,
+            primary_owner(owners),
+            accession=entry.accession,
+            filing_url=entry.filing_url,
+            filed_at=filed,
+            market=snap,
+            cfg=cfg["filters"],
+        )
+        if sig is None:
+            log.info("skip %s: %s", entry.accession, rej.reason)
+            state.bump("filtered_out")
+            continue
+
+        if len(owners) > 1:
+            others = ", ".join(o.name for o in owners if o.name and o.name != sig.owner_name)
+            sig.notes.append(
+                f"Filing'da {len(owners)} ta reporting owner, bitta xarid"
+                + (f" (yana: {others})" if others else "")
+            )
+
+        if notifier.send(format_signal(sig)):
+            alerted += 1
+            sent_for_this_filing = True
+            log.info("ALERT %s %s $%s", sig.ticker, sig.owner_name, f"{sig.value_usd:,.0f}")
+        else:
+            log.error("failed to deliver alert for %s", entry.accession)
+            state.bump("send_failed")
 
         # A dry run must never consume the alert. Marking it here would make
         # the first real run skip the filing as "already sent" and the signal
