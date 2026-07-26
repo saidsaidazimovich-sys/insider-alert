@@ -168,6 +168,21 @@ class Owner:
         return r[0] if len(r) == 1 else ", ".join(r[:-1]) + " va " + r[-1]
 
 
+def primary_owner(owners: list["Owner"]) -> "Owner":
+    """Pick the one owner an alert should name.
+
+    Fund purchases are filed jointly: the individual manager plus the fund,
+    its GP, the opportunity fund and that fund's GP can all appear as
+    reporting owners on ONE $1.2M purchase. Prefer a natural person (someone
+    flagged as officer or director) so the alert names a human rather than
+    "Samsara BioCapital GP, LLC".
+    """
+    for o in owners:
+        if o.is_officer or o.is_director:
+            return o
+    return owners[0]
+
+
 @dataclass
 class Form4:
     document_type: str | None = None          # "4" or "4/A"
