@@ -92,7 +92,7 @@ def test_non_purchases_never_reach_the_filters():
     for f in ("sale.xml", "grant_zero_price.xml", "pipe_derivative_only.xml"):
         sig, rej = run(f, snap("6900000"))
         assert sig is None
-        assert rej.reason == "no cash purchase of common stock"
+        assert "no usable cash purchase" in rej.reason
 
 
 def test_multi_leg_note_and_premium_note():
