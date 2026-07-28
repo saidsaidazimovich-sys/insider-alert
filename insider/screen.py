@@ -117,8 +117,8 @@ def screen(
         notes.append(f"{agg['legs']} ta tranzaksiya birlashtirildi (vaznli o'rtacha narx)")
     for bad in agg["excluded_legs"]:
         notes.append(
-            f"\u26a0\ufe0f Filing'da ishonchsiz narx bor edi ({bad['shares']:,.0f} \u00d7 "
-            f"${bad['price']:,.4f}) \u2014 hisobga olinmadi, SEC hujjatini o'zingiz tekshiring"
+            f"⚠️ Filing'da ishonchsiz narx bor edi ({bad['shares']:,.0f} × "
+            f"${bad['price']:,.4f}) — hisobga olinmadi, SEC hujjatini o'zingiz tekshiring"
         )
     if agg["all_indirect"]:
         notes.append("Bilvosita egalik (shaxsan emas, tuzilma orqali)")
