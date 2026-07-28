@@ -59,8 +59,10 @@ def format_signal(sig) -> str:
         f"   💰 {sig.shares:,.0f} × {_money(sig.price, 4)} = <b>{_money(sig.value_usd)}</b>",
     ]
 
-    dates = f"   📅 Operatsiya: {e(sig.transaction_date or '?')} | Filing: {e(sig.filed_at)}"
-    lines.append(dates)
+    when = e(sig.transaction_date or "?")
+    if sig.transaction_date_last and sig.transaction_date_last != sig.transaction_date:
+        when += f" … {e(sig.transaction_date_last)}"
+    lines.append(f"   📅 Operatsiya: {when} | Filing: {e(sig.filed_at)}")
 
     if sig.shares_owned_after is not None:
         lines.append(f"   📈 Xariddan keyin: {sig.shares_owned_after:,.0f} aksiya")
@@ -72,6 +74,13 @@ def format_signal(sig) -> str:
         lines.append(
             f"   52 hafta: min'dan {m.pct_from_52w_low:+.0f}%, "
             f"max'dan {m.pct_from_52w_high:+.0f}%"
+        )
+
+    if sig.is_10b5_1:
+        lines.append(
+            "⚠️ <b>TURI: Rule 10b5-1 rejasi</b> — oldindan tuzilgan avtomatik "
+            "sotib olish dasturi. Insayder o'sha kuni qaror qilmagan, shuning "
+            "uchun bu kuchsizroq signal."
         )
 
     if sig.is_subscription:
