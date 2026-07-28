@@ -64,6 +64,15 @@ SUBSCRIPTION_PATTERNS = [
 ]
 _SUBSCRIPTION_RE = re.compile("|".join(SUBSCRIPTION_PATTERNS), re.IGNORECASE)
 
+# A Rule 10b5-1 plan is set up months ahead and executes automatically. The
+# insider is not making a decision on the day of the trade, so it is a much
+# weaker signal than a discretionary purchase -- always worth flagging.
+_RULE_10B5_1_RE = re.compile(r"10b5-?1", re.IGNORECASE)
+
+# A leg priced this far from a trustworthy reference is a filer typo, not a
+# trade. See the note in aggregate_purchase().
+IMPLAUSIBLE_PRICE_RATIO = Decimal(10)
+
 
 def _text(node, path: str) -> str | None:
     """Read <path>/value, falling back to <path>'s own text.
@@ -193,6 +202,8 @@ class Form4:
     owners: list[Owner] = field(default_factory=list)
     transactions: list[Transaction] = field(default_factory=list)
     footnotes: list[str] = field(default_factory=list)
+    remarks: str | None = None
+    aff_10b5_1_flag: bool = False
     warnings: list[str] = field(default_factory=list)
 
     # --- derived -------------------------------------------------------------
@@ -215,6 +226,11 @@ class Form4:
         return m.group(0) if m else None
 
     @property
+    def is_10b5_1(self) -> bool:
+        """Pre-scheduled plan trade: the dedicated XML flag, or the footnotes."""
+        return self.aff_10b5_1_flag or bool(_RULE_10B5_1_RE.search(self.footnote_text))
+
+    @property
     def purchases(self) -> list[Transaction]:
         """Cash purchases of the actual common stock.
 
@@ -232,19 +248,57 @@ class Form4:
     def derivative_purchases(self) -> list[Transaction]:
         return [t for t in self.transactions if t.is_purchase and t.is_derivative]
 
-    def aggregate_purchase(self) -> dict | None:
+    def aggregate_purchase(self, reference_price: Decimal | None = None) -> dict | None:
         """Collapse every purchase leg in this filing into one buy.
 
         One Form 4 often reports the same buy split across several prices
         (e.g. broker fills). Reporting them separately would spam alerts and
         understate the size, so we sum the shares and volume-weight the price.
+
+        Filings contain typos, and taken literally they produce nonsense. A
+        real Navios Maritime Partners filing (0001193125-26-318541) reported a
+        price of 748119 for a unit trading near $75 -- the filer dropped the
+        decimal point. That single leg turned a $167k purchase into an
+        $846,000,000 alert. So any leg whose price is wildly out of line with a
+        trustworthy reference is dropped: the live market price when we have
+        one, otherwise the median of the legs. We never "repair" a price by
+        guessing where the decimal point belonged.
         """
         legs = self.purchases
         if not legs:
             return None
+
+        ref = reference_price
+        if (ref is None or ref <= 0) and len(legs) >= 3:
+            prices = sorted(t.price for t in legs)
+            ref = prices[len(prices) // 2]
+
+        excluded: list[Transaction] = []
+        if ref is not None and ref > 0:
+            kept = []
+            for t in legs:
+                ratio = t.price / ref
+                if ratio > IMPLAUSIBLE_PRICE_RATIO or ratio < 1 / IMPLAUSIBLE_PRICE_RATIO:
+                    excluded.append(t)
+                else:
+                    kept.append(t)
+            if not kept:
+                # Every price looked wrong. Better to stay silent than to
+                # publish a number we do not believe.
+                return None
+            legs = kept
+
         total_shares = sum(t.shares for t in legs)
         total_value = sum(t.value_usd for t in legs)
-        vwap = (total_value / total_shares) if total_shares else None
+        vwap = None
+        if total_shares:
+            vwap = total_value / total_shares
+            try:
+                # Raw Decimal division carries ~28 significant digits, which is
+                # noise in a price. Six places is plenty even for sub-penny stocks.
+                vwap = vwap.quantize(Decimal("0.000001"))
+            except (InvalidOperation, ValueError):
+                pass
         # Post-transaction holding: take the last reported non-derivative leg,
         # which reflects the position after the whole filing.
         after = None
@@ -259,6 +313,15 @@ class Form4:
             "transaction_date": min(
                 (t.transaction_date for t in legs if t.transaction_date), default=None
             ),
+            "transaction_date_last": max(
+                (t.transaction_date for t in legs if t.transaction_date), default=None
+            ),
+            "all_indirect": bool(legs) and all(
+                (t.direct_or_indirect or "").upper() == "I" for t in legs
+            ),
+            "excluded_legs": [
+                {"shares": t.shares, "price": t.price} for t in excluded
+            ],
             "shares_owned_after": after,
             "derivative_purchase_legs": len(self.derivative_purchases),
         }
@@ -357,6 +420,20 @@ def parse_form4(xml_bytes: bytes) -> Form4:
                 doc.transactions.append(_parse_transaction(node, is_deriv))
             except Exception as exc:              # noqa: BLE001
                 doc.warnings.append(f"bad-transaction: {exc}")
+
+    doc.remarks = (root.findtext("remarks") or "").strip() or None
+    doc.aff_10b5_1_flag = (root.findtext("aff10b5One") or "").strip().lower() in {
+        "1", "true", "y", "yes",
+    }
+
+    # Filers routinely put "See Remarks" in officerTitle and the actual job
+    # title in <remarks>. Showing "See Remarks" in an alert is useless.
+    if doc.remarks:
+        for owner in doc.owners:
+            if owner.officer_title and re.fullmatch(
+                r"see\s+remarks?\.?", owner.officer_title.strip(), re.IGNORECASE
+            ):
+                owner.officer_title = doc.remarks
 
     for fn in root.findall("footnotes/footnote"):
         # itertext() so nested markup inside a footnote still yields its words.
