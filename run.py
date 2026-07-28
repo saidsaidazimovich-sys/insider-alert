@@ -24,6 +24,7 @@ import sys
 import traceback
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
@@ -36,6 +37,15 @@ from insider.screen import screen
 from insider.state import State
 
 log = logging.getLogger("run")
+
+# Reports are read against the US market day, so every timestamp shown to a
+# human is New York time. %Z prints EDT or EST, so the label is never wrong
+# across a daylight-saving switch.
+NY = ZoneInfo("America/New_York")
+
+
+def ny(dt: datetime) -> str:
+    return dt.astimezone(NY).strftime("%Y-%m-%d %H:%M %Z")
 
 
 def _process(
@@ -83,7 +93,7 @@ def _process(
         state.bump("purchases_found")
 
         snap = provider.snapshot(doc.ticker) if doc.ticker else None
-        filed = entry.filed_at.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        filed = ny(entry.filed_at)
 
         # ONE alert per filing. Reporting owners are co-filers on the SAME
         # transaction, not separate buyers -- a single KLRS purchase listed
@@ -173,7 +183,7 @@ def _self_test(notifier: TelegramNotifier, cfg: dict) -> int:
                 doc.owners[0],
                 accession="0000000000-00-000000",
                 filing_url="https://www.sec.gov/",
-                filed_at="2026-05-22 12:01 UTC",
+                filed_at="2026-05-22 08:01 EDT",
                 market=snap,
                 cfg=cfg["filters"],
             )
@@ -190,6 +200,11 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="SEC Form 4 insider purchase monitor")
     ap.add_argument("--dry-run", action="store_true", help="print alerts, send nothing")
     ap.add_argument("--self-test", action="store_true", help="offline fixture run")
+    ap.add_argument(
+        "--test-telegram",
+        action="store_true",
+        help="send one message to prove the chat/topic works, then exit",
+    )
     ap.add_argument("--reconcile", metavar="YYYY-MM-DD", help="re-read one day fully")
     ap.add_argument("--backfill", nargs=2, metavar=("START", "END"))
     ap.add_argument("--config", default="config.yaml")
@@ -201,8 +216,23 @@ def main() -> int:
     cfg = load_config(args.config)
 
     notifier = TelegramNotifier(
-        secret("TELEGRAM_BOT_TOKEN"), secret("TELEGRAM_CHAT_ID"), dry_run=args.dry_run
+        secret("TELEGRAM_BOT_TOKEN"),
+        secret("TELEGRAM_CHAT_ID"),
+        thread_id=secret("TELEGRAM_THREAD_ID"),
+        dry_run=args.dry_run,
     )
+
+    if args.test_telegram:
+        target = f"chat {notifier.chat_id}"
+        if notifier.thread_id:
+            target += f", topic {notifier.thread_id}"
+        ok = notifier.send(
+            "\u2705 <b>insider_alert ulanish testi</b>\n"
+            f"Vaqt: {ny(datetime.now(timezone.utc))}\n"
+            f"Manzil: {target}"
+        )
+        log.info("test message %s", "delivered" if ok else "FAILED")
+        return 0 if ok else 1
 
     if args.self_test:
         return _self_test(notifier, cfg)
