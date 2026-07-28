@@ -100,9 +100,23 @@ def format_signal(sig) -> str:
 
 
 class TelegramNotifier:
-    def __init__(self, token: str | None, chat_id: str | None, dry_run: bool = False):
+    """Sends to a private chat, a group, or one topic inside a forum group.
+
+    For a forum group you need two ids: the group's own chat_id (a negative
+    number like -1001234567890) and the topic's message_thread_id. Without the
+    thread id the message lands in the group's General topic instead.
+    """
+
+    def __init__(
+        self,
+        token: str | None,
+        chat_id: str | None,
+        thread_id: str | None = None,
+        dry_run: bool = False,
+    ):
         self.token = token
         self.chat_id = chat_id
+        self.thread_id = thread_id
         self.dry_run = dry_run
         self._last_send = 0.0
         if not dry_run and not (token and chat_id):
@@ -122,17 +136,19 @@ class TelegramNotifier:
         if gap > 0:
             time.sleep(gap)
 
+        payload = {
+            "chat_id": self.chat_id,
+            "text": text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        }
+        if self.thread_id:
+            payload["message_thread_id"] = int(self.thread_id)
+
         for attempt in range(3):
             try:
                 r = requests.post(
-                    f"{API}/bot{self.token}/sendMessage",
-                    json={
-                        "chat_id": self.chat_id,
-                        "text": text,
-                        "parse_mode": "HTML",
-                        "disable_web_page_preview": True,
-                    },
-                    timeout=20,
+                    f"{API}/bot{self.token}/sendMessage", json=payload, timeout=20
                 )
             except requests.RequestException as exc:
                 log.warning("telegram send failed: %s", exc)
@@ -145,7 +161,23 @@ class TelegramNotifier:
                     log.warning("telegram rate limited, waiting %ss", wait)
                     time.sleep(wait + 1)
                     continue
-                log.error("telegram HTTP %s: %s", r.status_code, r.text[:300])
+                # The two failures worth naming, because the fix is different:
+                # a missing/renamed topic vs the bot not being in the group.
+                body = r.text[:300]
+                if "thread not found" in body.lower():
+                    log.error(
+                        "TELEGRAM_THREAD_ID %s does not exist in chat %s -- "
+                        "the topic may have been deleted or the id is wrong",
+                        self.thread_id, self.chat_id,
+                    )
+                elif "chat not found" in body.lower() or "bot is not a member" in body.lower():
+                    log.error(
+                        "bot cannot post to chat %s -- add it to the group and "
+                        "allow it to send messages",
+                        self.chat_id,
+                    )
+                else:
+                    log.error("telegram HTTP %s: %s", r.status_code, body)
                 return False
             time.sleep(2 ** attempt)
         return False
