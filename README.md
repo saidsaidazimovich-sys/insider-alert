@@ -169,6 +169,15 @@ Uchta secret qo'shing:
 | `SEC_USER_AGENT` | `Ism Familiya siz@example.com` — SEC talab qiladi, bo'lmasa 403 |
 | `TELEGRAM_BOT_TOKEN` | BotFather bergan token |
 | `TELEGRAM_CHAT_ID` | guruh id'si (`-100...`) yoki shaxsiy chat id |
+
+`TELEGRAM_THREAD_ID` esa **secret emas, Variable** bo'lib qo'shiladi
+(Settings → Secrets and variables → Actions → **Variables** → New variable),
+chunki mavzu raqami maxfiy emas. Secret qilib qo'ysangiz GitHub o'sha raqamga
+mos har bir belgini log'da yulduzcha bilan yashiradi va log o'qib bo'lmay
+qoladi.
+
+| Variable nomi | Qiymati |
+|---|---|
 | `TELEGRAM_THREAD_ID` | mavzu id'si — faqat forum guruhi uchun, aks holda qo'shmang |
 
 `SEC_USER_AGENT` ichida haqiqiy email bo'lishi shart. SEC bu orqali kim
