@@ -45,6 +45,8 @@ class Signal:
     pct_of_market_cap: Decimal | None
     is_subscription: bool
     subscription_evidence: str | None
+    is_10b5_1: bool
+    transaction_date_last: str | None
     notes: list[str]
 
 
@@ -70,9 +72,13 @@ def screen(
     cfg: dict,
 ) -> tuple[Signal | None, Rejection | None]:
     """Return (signal, None) if it passes, else (None, rejection)."""
-    agg = doc.aggregate_purchase()
+    # Hand the parser a trustworthy reference price so it can throw out legs
+    # with a mistyped price before any arithmetic depends on them.
+    agg = doc.aggregate_purchase(reference_price=market.price if market else None)
     if agg is None:
-        return None, Rejection(accession, "no cash purchase of common stock")
+        return None, Rejection(
+            accession, "no usable cash purchase of common stock (or every price looked wrong)"
+        )
 
     value: Decimal = agg["value_usd"]
     notes: list[str] = []
@@ -109,6 +115,13 @@ def screen(
 
     if agg["legs"] > 1:
         notes.append(f"{agg['legs']} ta tranzaksiya birlashtirildi (vaznli o'rtacha narx)")
+    for bad in agg["excluded_legs"]:
+        notes.append(
+            f"\u26a0\ufe0f Filing'da ishonchsiz narx bor edi ({bad['shares']:,.0f} \u00d7 "
+            f"${bad['price']:,.4f}) \u2014 hisobga olinmadi, SEC hujjatini o'zingiz tekshiring"
+        )
+    if agg["all_indirect"]:
+        notes.append("Bilvosita egalik (shaxsan emas, tuzilma orqali)")
     if agg["derivative_purchase_legs"]:
         notes.append(
             f"{agg['derivative_purchase_legs']} ta derivativ xarid ham bor "
@@ -116,9 +129,11 @@ def screen(
         )
     if doc.is_amendment:
         notes.append("Bu tuzatilgan filing (Form 4/A)")
-    if market and market.price and agg["price"] > market.price:
+    if market and market.price and market.price > 0 and agg["price"] > market.price:
         prem = (agg["price"] - market.price) / market.price * 100
-        notes.append(f"Xarid narxi joriy bozordan {prem:.1f}% qimmat")
+        # Beyond this the number is a data problem, not a premium worth reporting.
+        if prem <= 500:
+            notes.append(f"Xarid narxi joriy bozordan {prem:.1f}% qimmat")
 
     return (
         Signal(
@@ -140,6 +155,8 @@ def screen(
             pct_of_market_cap=pct,
             is_subscription=doc.is_subscription,
             subscription_evidence=doc.subscription_evidence,
+            is_10b5_1=doc.is_10b5_1,
+            transaction_date_last=agg["transaction_date_last"],
             notes=notes,
         ),
         None,
