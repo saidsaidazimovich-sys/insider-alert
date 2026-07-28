@@ -24,6 +24,10 @@ on:
         description: "Print alerts instead of sending them"
         type: boolean
         default: false
+      test_telegram:
+        description: "Send one test message to check the chat/topic, then stop"
+        type: boolean
+        default: false
 
 concurrency:
   # Never let a delayed run overlap the next one and double-process filings.
@@ -55,7 +59,16 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_ID }}
         run: |
-          python run.py ${{ inputs.dry_run && '--dry-run' || '' }}
+          # test_telegram wins over dry_run: it is the quickest way to prove
+          # delivery lands in the right group topic.
+          ARGS=""
+          if [[ "${{ inputs.test_telegram }}" == "true" ]]; then
+            ARGS="--test-telegram"
+          elif [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            ARGS="--dry-run"
+          fi
+          echo "running: python run.py $ARGS"
+          python run.py $ARGS
 
       - name: Persist state
         if: always()
