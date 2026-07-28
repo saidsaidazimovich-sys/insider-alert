@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<!-- Shape and numbers taken verbatim from Navios Maritime Partners L.P.,
+     accession 0001193125-26-318541. Leg 1's price of 748119 is a filer typo
+     for 74.8119 (the footnote gives a $73.73-$76.34 range for that day).
+     Also carries aff10b5One, "See Remarks" as the title, and indirect
+     ownership - all four defects in one real document. -->
+<ownershipDocument>
+    <schemaVersion>X0609</schemaVersion>
+    <documentType>4</documentType>
+    <periodOfReport>2026-07-27</periodOfReport>
+    <aff10b5One>true</aff10b5One>
+    <issuer>
+        <issuerCik>0001415921</issuerCik>
+        <issuerName>Navios Maritime Partners L.P.</issuerName>
+        <issuerTradingSymbol>NMM</issuerTradingSymbol>
+    </issuer>
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0001443669</rptOwnerCik>
+            <rptOwnerName>Frangou Angeliki</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerRelationship>
+            <isDirector>1</isDirector>
+            <isOfficer>1</isOfficer>
+            <isTenPercentOwner>1</isTenPercentOwner>
+            <officerTitle>See Remarks</officerTitle>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+    <nonDerivativeTable>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Unit</value></securityTitle>
+            <transactionDate><value>2026-07-23</value></transactionDate>
+            <transactionCoding><transactionCode>P</transactionCode></transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>1131</value></transactionShares>
+                <transactionPricePerShare><value>748119</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts>
+                <sharesOwnedFollowingTransaction><value>4776699</value></sharesOwnedFollowingTransaction>
+            </postTransactionAmounts>
+            <ownershipNature><directOrIndirectOwnership><value>I</value></directOrIndirectOwnership></ownershipNature>
+        </nonDerivativeTransaction>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Unit</value></securityTitle>
+            <transactionDate><value>2026-07-24</value></transactionDate>
+            <transactionCoding><transactionCode>P</transactionCode></transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>1084</value></transactionShares>
+                <transactionPricePerShare><value>79.019</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts>
+                <sharesOwnedFollowingTransaction><value>4777783</value></sharesOwnedFollowingTransaction>
+            </postTransactionAmounts>
+            <ownershipNature><directOrIndirectOwnership><value>I</value></directOrIndirectOwnership></ownershipNature>
+        </nonDerivativeTransaction>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Unit</value></securityTitle>
+            <transactionDate><value>2026-07-27</value></transactionDate>
+            <transactionCoding><transactionCode>P</transactionCode></transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>1053</value></transactionShares>
+                <transactionPricePerShare><value>77.6356</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts>
+                <sharesOwnedFollowingTransaction><value>4778836</value></sharesOwnedFollowingTransaction>
+            </postTransactionAmounts>
+            <ownershipNature><directOrIndirectOwnership><value>I</value></directOrIndirectOwnership></ownershipNature>
+        </nonDerivativeTransaction>
+    </nonDerivativeTable>
+    <remarks>Chief Executive Officer &amp; Chairwoman of the Board</remarks>
+    <footnotes>
+        <footnote id="F1">The transactions reported herein were made pursuant to a Rule 10b5-1 trading plan between Raymar Investments S.A., an entity affiliated with Ms. Frangou, and UBS Financial Services Inc. adopted on December 9, 2025.</footnote>
+        <footnote id="F2">The transactions reported herein were effected in multiple transactions each day at prices ranging from (1) $73.73 to $76.34 on July 23, 2026; (2) $78.09 to $80.00 on July 24, 2026; and (3) $77.09 to $78.38 on July 27, 2026.</footnote>
+    </footnotes>
+</ownershipDocument>
