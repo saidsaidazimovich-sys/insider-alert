@@ -122,23 +122,42 @@ Rejimlar:
 
 ---
 
-## 1-qadam: Telegram bot (buni O'ZINGIZ qilasiz)
+## 1-qadam: Telegram (buni O'ZINGIZ qilasiz)
 
 Token — bu parol. Men uni ko'rmasligim kerak va hech qaerga yozmayman.
 
+### Bot yaratish
+
 1. Telegram'da **@BotFather** ni oching → `/newbot`
-2. Botga nom va username bering (username `bot` bilan tugashi kerak)
-3. BotFather bergan tokenni oling — `123456789:AAF...` ko'rinishida
-4. Botni oching va unga bitta xabar yozing (masalan `salom`) — bu shart,
-   aks holda bot sizga yozolmaydi
-5. Brauzerda oching (`<TOKEN>` o'rniga o'z tokeningizni qo'ying):
-   `https://api.telegram.org/bot<TOKEN>/getUpdates`
-6. Javobdan `"chat":{"id":123456789` raqamini oling — bu `TELEGRAM_CHAT_ID`
+2. Nom va username bering (username `bot` bilan tugashi kerak)
+3. Tokenni oling — `123456789:AAF...` ko'rinishida
 
-> Webull skaneringizdagi mavjud botni qayta ishlatsangiz, 1–6 qadamlar kerak
-> emas — o'sha token va chat_id ishlaydi.
+> Webull skaneringizdagi mavjud botni qayta ishlatsangiz, bu qadam kerak emas.
 
----
+### Guruh mavzusiga (topic) yuborish
+
+1. Guruhda **Settings → Topics** yoqilgan bo'lsin
+2. Botni guruhga qo'shing va **xabar yuborish huquqini** bering
+   (eng ishonchlisi — admin qiling)
+3. Kerakli mavzuni oching va u yerga bitta xabar yozing
+4. Brauzerda oching: `https://api.telegram.org/bot<TOKEN>/getUpdates`
+5. Javobdan ikkita raqamni oling:
+   - `"chat":{"id":-1001234567890` → bu **TELEGRAM_CHAT_ID** (minus bilan)
+   - `"message_thread_id":42` → bu **TELEGRAM_THREAD_ID**
+
+`message_thread_id` ko'rinmasa, demak xabarni General mavzusiga yozgansiz —
+kerakli mavzu ichiga yozib, `getUpdates`ni qayta oching.
+
+Oddiy shaxsiy chatga yuborish uchun `TELEGRAM_THREAD_ID` ni bo'sh qoldiring.
+
+### Tekshirish
+
+```bash
+python run.py --test-telegram
+```
+
+Bitta sinov xabari yuboradi va qayerga ketganini aytadi. Xato bo'lsa sababini
+aniq yozadi (mavzu topilmadi / bot guruhda emas).
 
 ## 2-qadam: GitHub secrets
 
@@ -149,7 +168,8 @@ Uchta secret qo'shing:
 |---|---|
 | `SEC_USER_AGENT` | `Ism Familiya siz@example.com` — SEC talab qiladi, bo'lmasa 403 |
 | `TELEGRAM_BOT_TOKEN` | BotFather bergan token |
-| `TELEGRAM_CHAT_ID` | yuqorida olgan raqam |
+| `TELEGRAM_CHAT_ID` | guruh id'si (`-100...`) yoki shaxsiy chat id |
+| `TELEGRAM_THREAD_ID` | mavzu id'si — faqat forum guruhi uchun, aks holda qo'shmang |
 
 `SEC_USER_AGENT` ichida haqiqiy email bo'lishi shart. SEC bu orqali kim
 so'rov yuborayotganini biladi; yolg'on qo'yish ToS buzilishi va IP bloklanishi
@@ -214,6 +234,7 @@ insider_alert/
 ```
 
 Kod izohlari inglizcha, README va Telegram xabarlari o'zbekcha.
+Xabarlardagi barcha vaqtlar **Nyu-York vaqti** (EDT/EST) — AQSh bozor kuniga mos.
 
 ## Texnik qarorlar
 
