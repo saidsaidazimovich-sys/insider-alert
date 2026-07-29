@@ -30,6 +30,7 @@ class Signal:
     is_amendment: bool
 
     ticker: str | None
+    issuer_cik: str | None
     issuer_name: str | None
     owner_name: str | None
     role_label: str
@@ -48,6 +49,25 @@ class Signal:
     is_10b5_1: bool
     transaction_date_last: str | None
     notes: list[str]
+
+
+    @property
+    def fingerprint(self) -> str:
+        """Identifies the PURCHASE, not the document that reported it.
+
+        Co-filers (a fund, its GP, its manager) each file their own Form 4 for
+        one trade, and a later 4/A restates it again. Those are different
+        accession numbers describing the same economic event, so dedup has to
+        key on the event.
+        """
+        return "|".join(
+            [
+                str(self.issuer_cik or self.ticker or "?"),
+                str(self.transaction_date or "?"),
+                f"{self.shares:.0f}",
+                f"{self.price:.6f}",
+            ]
+        )
 
 
 @dataclass
@@ -142,6 +162,7 @@ def screen(
             filed_at=filed_at,
             is_amendment=doc.is_amendment,
             ticker=doc.ticker,
+            issuer_cik=doc.issuer_cik,
             issuer_name=doc.issuer_name,
             owner_name=owner.name,
             role_label=owner.role_label,
