@@ -30,6 +30,13 @@ class State:
     path: Path
     seen: list[str] = field(default_factory=list)          # accessions examined
     alerted: dict[str, str] = field(default_factory=dict)  # accession -> ISO sent_at
+    # Fingerprint of the PURCHASE itself, so the same trade filed separately by
+    # a fund, its GP and its manager -- or re-filed later as a 4/A -- alerts
+    # once instead of once per document.
+    alerted_fps: dict[str, str] = field(default_factory=dict)
+    # accession -> how many times fetching it has failed, so a transient error
+    # is retried on the next run rather than silently swallowed forever.
+    fetch_failures: dict[str, int] = field(default_factory=dict)
     last_run: str | None = None
     counters: dict[str, int] = field(default_factory=dict)
 
@@ -49,6 +56,8 @@ class State:
             path=p,
             seen=list(raw.get("seen", []))[-MAX_SEEN:],
             alerted=dict(raw.get("alerted", {})),
+            alerted_fps=dict(raw.get("alerted_fps", {})),
+            fetch_failures=dict(raw.get("fetch_failures", {})),
             last_run=raw.get("last_run"),
             counters=dict(raw.get("counters", {})),
         )
@@ -60,10 +69,15 @@ class State:
         if len(self.alerted) > MAX_SEEN:
             newest = sorted(self.alerted.items(), key=lambda kv: kv[1], reverse=True)
             self.alerted = dict(newest[:MAX_SEEN])
+        if len(self.alerted_fps) > MAX_SEEN:
+            newest = sorted(self.alerted_fps.items(), key=lambda kv: kv[1], reverse=True)
+            self.alerted_fps = dict(newest[:MAX_SEEN])
         payload = {
             "last_run": self.last_run,
             "counters": self.counters,
             "alerted": self.alerted,
+            "alerted_fps": self.alerted_fps,
+            "fetch_failures": self.fetch_failures,
             "seen": self.seen,
         }
         tmp = self.path.with_suffix(".tmp")
@@ -84,6 +98,24 @@ class State:
 
     def mark_alerted(self, accession: str) -> None:
         self.alerted[accession] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+    # --- purchase-level dedup ------------------------------------------------
+    def already_alerted_fp(self, fingerprint: str) -> bool:
+        return fingerprint in self.alerted_fps
+
+    def mark_alerted_fp(self, fingerprint: str) -> None:
+        self.alerted_fps[fingerprint] = datetime.now(timezone.utc).isoformat(
+            timespec="seconds"
+        )
+
+    # --- fetch retries -------------------------------------------------------
+    def note_fetch_failure(self, accession: str) -> int:
+        n = self.fetch_failures.get(accession, 0) + 1
+        self.fetch_failures[accession] = n
+        return n
+
+    def clear_fetch_failure(self, accession: str) -> None:
+        self.fetch_failures.pop(accession, None)
 
     def bump(self, key: str, n: int = 1) -> None:
         self.counters[key] = self.counters.get(key, 0) + n
