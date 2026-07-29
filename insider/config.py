@@ -17,6 +17,7 @@ DEFAULTS = {
         "min_pct_of_market_cap": 1.0,
         "allowed_exchanges": [],
         "exclude_tickers": [],
+        "require_ticker": True,
         "alert_when_cap_unknown": True,
     },
     "market": {"provider": "yfinance"},
