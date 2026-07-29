@@ -38,6 +38,11 @@ from insider.state import State
 
 log = logging.getLogger("run")
 
+# A filing that will not download after this many runs is almost certainly
+# broken rather than briefly unavailable; stop retrying so it cannot clog
+# every future run.
+MAX_FETCH_TRIES = 3
+
 # Reports are read against the US market day, so every timestamp shown to a
 # human is New York time. %Z prints EDT or EST, so the label is never wrong
 # across a daylight-saving switch.
@@ -70,13 +75,23 @@ def _process(
             continue
 
         examined += 1
-        state.mark_seen(entry.accession)
 
-        xml = client.fetch_form4_xml(entry.cik, entry.accession)
+        # Fetch BEFORE marking it seen. Marking first meant a single transient
+        # network error buried the filing permanently -- 337 of them had piled
+        # up that way.
+        xml = client.fetch_form4_xml(entry.cik, entry.accession, entry.archive_path)
         if xml is None:
-            log.warning("could not fetch XML for %s", entry.accession)
+            tries = state.note_fetch_failure(entry.accession)
             state.bump("fetch_failed")
+            if tries >= MAX_FETCH_TRIES:
+                log.warning("giving up on %s after %s attempts", entry.accession, tries)
+                state.mark_seen(entry.accession)
+            else:
+                log.info("fetch failed for %s (attempt %s), will retry", entry.accession, tries)
             continue
+
+        state.clear_fetch_failure(entry.accession)
+        state.mark_seen(entry.accession)
 
         doc = parse_form4(xml)
         if doc.warnings:
@@ -92,8 +107,28 @@ def _process(
 
         state.bump("purchases_found")
 
+        # Filings often leave the trading symbol blank. Ask SEC directly before
+        # giving up -- and if SEC has no ticker either, the issuer is not
+        # publicly traded (non-traded BDCs and private REITs file Form 4s all
+        # the time). There is no market to act on, so it is noise, not a signal.
+        if not doc.ticker and doc.issuer_cik:
+            sym, exch = client.ticker_for_cik(doc.issuer_cik)
+            if sym:
+                doc.ticker = sym
+                log.info("resolved ticker %s for CIK %s", sym, doc.issuer_cik)
+        if not doc.ticker and cfg["filters"].get("require_ticker", True):
+            log.info(
+                "skip %s: %s has no ticker (not publicly traded)",
+                entry.accession, doc.issuer_name or doc.issuer_cik,
+            )
+            state.bump("no_ticker")
+            continue
+
         snap = provider.snapshot(doc.ticker) if doc.ticker else None
-        filed = ny(entry.filed_at)
+        # The daily index carries a date but no clock time. Rendering midnight
+        # UTC as New York time would show 20:00 on the PREVIOUS day, so say
+        # plainly that only the date is known.
+        filed = ny(entry.filed_at) if entry.filed_at_is_exact else f"{entry.filed_at:%Y-%m-%d}"
 
         # ONE alert per filing. Reporting owners are co-filers on the SAME
         # transaction, not separate buyers -- a single KLRS purchase listed
@@ -123,6 +158,17 @@ def _process(
                 + (f" (yana: {others})" if others else "")
             )
 
+        # Same trade, different document: co-filers and 4/A restatements.
+        if state.already_alerted_fp(sig.fingerprint):
+            log.info(
+                "skip %s: this purchase was already alerted under another filing",
+                entry.accession,
+            )
+            state.bump("duplicate_purchase")
+            if not notifier.dry_run:
+                state.mark_alerted(entry.accession)
+            continue
+
         if notifier.send(format_signal(sig)):
             alerted += 1
             sent_for_this_filing = True
@@ -136,6 +182,7 @@ def _process(
         # would be lost silently.
         if sent_for_this_filing and not notifier.dry_run:
             state.mark_alerted(entry.accession)
+            state.mark_alerted_fp(sig.fingerprint)
 
     return examined, alerted
 
