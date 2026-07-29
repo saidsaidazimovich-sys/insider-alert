@@ -68,6 +68,14 @@ class FeedEntry:
     form_type: str          # "4" or "4/A"
     filed_at: datetime
     title: str
+    # Path straight out of the daily index, e.g.
+    # "edgar/data/938543/0000950142-26-002183.txt". Authoritative, so we
+    # prefer it over rebuilding a URL from a parsed CIK column.
+    archive_path: str | None = None
+    # The Atom feed gives a real accepted-at timestamp. The daily index gives
+    # only a date, so anything derived from it must not be shown as a clock
+    # time -- midnight UTC renders as 20:00 the PREVIOUS day in New York.
+    filed_at_is_exact: bool = True
 
     @property
     def accession_nodash(self) -> str:
@@ -91,12 +99,12 @@ class EdgarClient:
             )
         self.timeout = timeout
         self.limiter = RateLimiter(per_second)
+        self._ticker_cache: dict[str, tuple[str | None, str | None]] = {}
         self.session = requests.Session()
         self.session.headers.update(
             {
                 "User-Agent": user_agent,
                 "Accept-Encoding": "gzip, deflate",
-                "Host": "www.sec.gov",
             }
         )
 
@@ -187,10 +195,15 @@ class EdgarClient:
         return out
 
     # --- one filing ---------------------------------------------------------
-    def fetch_form4_xml(self, cik: str, accession: str) -> bytes | None:
+    def fetch_form4_xml(
+        self, cik: str, accession: str, archive_path: str | None = None
+    ) -> bytes | None:
         """Return the raw ownership XML bytes for a filing, or None."""
         nodash = accession.replace("-", "")
-        txt_url = f"{ARCHIVE}/{cik}/{nodash}/{accession}.txt"
+        if archive_path:
+            txt_url = f"https://www.sec.gov/Archives/{archive_path.lstrip('/')}"
+        else:
+            txt_url = f"{ARCHIVE}/{cik}/{nodash}/{accession}.txt"
         r = self.get(txt_url)
         if r is not None:
             xml = _extract_ownership_xml(r.content)
@@ -217,6 +230,36 @@ class EdgarClient:
                     return got.content
         return None
 
+    # --- issuer metadata ----------------------------------------------------
+    def ticker_for_cik(self, cik: str) -> tuple[str | None, str | None]:
+        """(ticker, exchange) for an issuer CIK, from SEC's submissions API.
+
+        Filings often leave <issuerTradingSymbol> empty. Sometimes the company
+        is simply not listed -- non-traded BDCs and private REITs file Form 4s
+        constantly and there is no market to act on -- and sometimes the filer
+        just omitted it. This tells the two apart instead of guessing.
+        """
+        key = str(cik).lstrip("0")
+        if key in self._ticker_cache:
+            return self._ticker_cache[key]
+
+        result: tuple[str | None, str | None] = (None, None)
+        r = self.get(f"https://data.sec.gov/submissions/CIK{int(key):010d}.json")
+        if r is not None:
+            try:
+                j = r.json()
+                tickers = j.get("tickers") or []
+                exchanges = j.get("exchanges") or []
+                if tickers:
+                    result = (
+                        str(tickers[0]).upper(),
+                        str(exchanges[0]) if exchanges else None,
+                    )
+            except (ValueError, KeyError, TypeError, IndexError) as exc:
+                log.warning("bad submissions JSON for CIK %s: %s", key, exc)
+        self._ticker_cache[key] = result
+        return result
+
     # --- gap filling --------------------------------------------------------
     def daily_index_form4s(self, day: datetime) -> list[FeedEntry]:
         """All Form 4s EDGAR accepted on `day`, from the daily index.
@@ -238,10 +281,15 @@ class EdgarClient:
             parts = re.split(r"\s{2,}", line.strip())
             if len(parts) < 5:
                 continue
-            form_type, company, cik, date_str, path = parts[0], parts[1], parts[2], parts[3], parts[-1]
+            form_type, company, date_str, path = (
+                parts[0], parts[1], parts[3], parts[-1].strip()
+            )
             if form_type.strip() not in ("4", "4/A"):
                 continue
-            m = re.search(r"(\d{10}-\d{2}-\d{6})", path)
+            # Company names can themselves contain runs of spaces, which shifts
+            # every later column. The trailing path is unambiguous, so both the
+            # CIK and the accession come from there.
+            m = re.search(r"data/(\d+)/(\d{10}-\d{2}-\d{6})", path)
             if not m:
                 continue
             try:
@@ -252,11 +300,13 @@ class EdgarClient:
                 filed = day
             out.append(
                 FeedEntry(
-                    accession=m.group(1),
-                    cik=cik.strip().lstrip("0"),
+                    accession=m.group(2),
+                    cik=m.group(1).lstrip("0"),
                     form_type=form_type.strip(),
                     filed_at=filed,
                     title=company.strip(),
+                    archive_path=path,
+                    filed_at_is_exact=False,
                 )
             )
         # One accession can appear per party here too.
