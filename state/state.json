@@ -254,11 +254,11 @@
  "counters": {
   "duplicate_purchase": 8,
   "fetch_failed": 8097,
-  "filtered_out": 1876,
+  "filtered_out": 1877,
   "no_ticker": 80,
   "not_a_purchase": 22119,
-  "purchases_found": 2093,
-  "runs": 541
+  "purchases_found": 2094,
+  "runs": 542
  },
  "fetch_failures": {
   "0000009712-26-000102": 2,
@@ -5951,7 +5951,7 @@
   "0002078265-26-000366": 1,
   "0002109817-26-000012": 1
  },
- "last_run": "2026-09-14T16:06:57+00:00",
+ "last_run": "2026-09-14T20:17:14+00:00",
  "seen": [
   "0001705446-26-000012",
   "0001106578-26-000126",
